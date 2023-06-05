@@ -1,8 +1,10 @@
 import threading
 import random
+import time
 
 BOARD_HEIGHT = 20
 BOARD_WIDTH = 10
+WAIT_TIME = 0.1
 
 
 class Engine:
@@ -31,6 +33,10 @@ class Engine:
             return
         self.can_input = False
         self.lock.acquire()
+
+        if not self.inTurn:
+            self.lock.release()
+            return
 
         piece_number = self.player_piece[0]
         new_piece = [None, None, None, None]
@@ -180,6 +186,10 @@ class Engine:
         self.can_input = False
         self.lock.acquire()
 
+        if not self.inTurn:
+            self.lock.release()
+            return
+
         new_piece = []
         for i in range(4):
             piece = self.player_piece[1]
@@ -202,7 +212,8 @@ class Engine:
             new_piece.append([self.player_piece[1][i][0], self.player_piece[1][i][1] - 1])
 
         if not self.check_free(new_piece):
-            self.lock.release()
+            #self.lock.release() DON'T RELEASE LOCK
+            self.inTurn = False
             return False
 
         self.player_piece[1] = new_piece
@@ -223,8 +234,9 @@ class Engine:
         self.lines = 0
         self.score = 0
         self.speed_number = 0
-        self.can_input = False  # whether or not a move/rotation can be queued
+        self.can_input = True  # whether or not a move/rotation can be queued
         self.lock = threading.Lock()
+        self.inTurn = False
 
     #   the player has lost
     def game_over(self):
@@ -249,6 +261,7 @@ class Engine:
         elif self.next == 7:    # S
             self.player_piece[1] = [[4, BOARD_HEIGHT-2], [5, BOARD_HEIGHT-2], [5, BOARD_HEIGHT-1], [6, BOARD_HEIGHT-1]]
         self.generate_next()
+        self.inTurn = True
 
         #   check for lose condition
         if not self.check_free(self.player_piece[1]):
@@ -256,14 +269,15 @@ class Engine:
             return False
 
         #   let the piece fall
+        time.sleep(WAIT_TIME)
         while self.fall():
-            pass
+            time.sleep(WAIT_TIME)
 
         #   imprint the piece onto the board
         for cord in self.player_piece[1]:
             self.board[cord[1]][cord[0]] = self.player_piece[0]
 
-        # remove complete lines
+        # find and remove complete lines
         checked_lines = []
         complete_lines = []
         for cord in self.player_piece[1]:
@@ -277,6 +291,15 @@ class Engine:
                     break
             if add:
                 complete_lines.append(cord[1])
+        for line in complete_lines:
+            self.board[line] = [0] * BOARD_WIDTH
+            for i in range(line + 1, BOARD_HEIGHT):
+                temp = self.board[i-1]
+                self.board[i-1] = self.board[i]
+                self.board[i] = temp
+        self.lock.release()
+
+        return True
 
 
 def main():
