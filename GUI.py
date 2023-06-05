@@ -1,4 +1,6 @@
 import tkinter as tk
+
+import AI
 import Tetris
 import threading
 import time
@@ -79,6 +81,23 @@ def run():
         running = False
     engine_thread = threading.Thread(target=run_engine)
     engine_thread.start()
+
+    def run_ai():
+        ai = AI.AI()
+        ai.randomize_network()
+        while running:
+            move_idea = ai.get_move(engine.board, engine.next, engine.player_piece)
+            if move_idea == 1:
+                engine.move_piece(1)
+            elif move_idea == 2:
+                engine.move_piece(-1)
+            elif move_idea == 3:
+                engine.rotate_piece(1)
+            elif move_idea == 4:
+                engine.rotate_piece(-1)
+            time.sleep(Tetris.WAIT_TIME / 2)
+    ai_thread = threading.Thread(target=run_ai)
+    ai_thread.start()
 
     def run_board():
         update_board()
